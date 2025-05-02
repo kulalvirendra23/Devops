@@ -1,0 +1,69 @@
+clear;
+N = 10^6; % Number of bits
+rand('state',100);
+randn('state',200);
+
+% Generate BPSK symbols
+ip = rand(1,N) > 0.5;
+s = 2*ip - 1;
+
+% Extended SNR Range for Second Plot
+Eb_N0_dB = -3:35; % Increased upper limit from 15 to 35
+nErr_AWGN = zeros(1, length(Eb_N0_dB));
+nErr_Rayleigh = zeros(1, length(Eb_N0_dB));
+
+for ii = 1:length(Eb_N0_dB)
+    % Generate AWGN noise
+    n = 1/sqrt(2) * (randn(1,N) + 1j*randn(1,N)); 
+    
+    % Generate Rayleigh fading channel
+    h = 1/sqrt(2) * (randn(1,N) + 1j*randn(1,N)); 
+    
+    % AWGN Channel Model
+    y_AWGN = s + 10^(-Eb_N0_dB(ii)/20) * n;
+    
+    % Rayleigh Fading Channel Model
+    y_Rayleigh = h .* s + 10^(-Eb_N0_dB(ii)/20) * n; % Fading + Noise
+    
+    % Receiver for AWGN: Direct detection
+    ipHat_AWGN = real(y_AWGN) > 0;
+    
+    % Receiver for Rayleigh: Equalization (h should not be zero)
+    y_eq = y_Rayleigh ./ h; % Equalization
+    ipHat_Rayleigh = real(y_eq) > 0;
+    
+    % Count errors
+    nErr_AWGN(ii) = sum(ip ~= ipHat_AWGN);
+    nErr_Rayleigh(ii) = sum(ip ~= ipHat_Rayleigh);
+end
+
+% BER Calculation
+simBer_AWGN = nErr_AWGN / N;
+simBer_Rayleigh = nErr_Rayleigh / N;
+theoryBer_AWGN = 0.5 * erfc(sqrt(10.^(Eb_N0_dB/10))); % Theoretical AWGN BER
+theoryBer_Rayleigh = 0.5 * (1 - sqrt(10.^(Eb_N0_dB/10) ./ (1 + 10.^(Eb_N0_dB/10)))); % Rayleigh BER
+
+% === Plot 1: BER for BPSK ===
+figure;
+semilogy(Eb_N0_dB(1:14), theoryBer_AWGN(1:14), 'b.-', 'LineWidth', 2); hold on;
+semilogy(Eb_N0_dB(1:14), simBer_AWGN(1:14), 'mx-', 'LineWidth', 2);
+grid on;
+legend('BPSK Theory', 'BPSK Simulation');
+xlabel('Eb/No (dB)');
+ylabel('Bit Error Rate (BER)');
+title('BER Performance of BPSK');
+axis([-3 10 10^-5 0.5]); % Keeping original range for BPSK plot
+
+% === Plot 2: AWGN vs. Rayleigh Fading (Extended X-Axis to 35 dB) ===
+figure;
+semilogy(Eb_N0_dB, theoryBer_AWGN, 'b.-', 'LineWidth', 2); hold on;
+semilogy(Eb_N0_dB, simBer_AWGN, 'mx-', 'LineWidth', 2);
+semilogy(Eb_N0_dB, theoryBer_Rayleigh, 'g.-', 'LineWidth', 2);
+semilogy(Eb_N0_dB, simBer_Rayleigh, 'ro-', 'LineWidth', 2);
+grid on;
+legend('AWGN Theory', 'AWGN Simulation', 'Rayleigh Theory', 'Rayleigh Simulation');
+xlabel('Eb/No (dB)');
+ylabel('Bit Error Rate (BER)');
+title('BER Comparison: AWGN vs. Rayleigh Fading');
+axis([-3 35 10^-5 0.5]); % Extended X-Axis to 35 dB
+
